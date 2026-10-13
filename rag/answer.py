@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import re
 import time
+from typing import Any
 
 from core.config import Settings
 from core.llm import LLMClient
 from rag.prompts import INSUFFICIENT, PROMPTS, build_user_prompt, format_sources
-from rag.retriever import HybridRetriever
+from rag.retriever import Retriever
 from rag.schemas import Citation, RagAnswer, RetrievedChunk
 
 _MARKER = re.compile(r"\[S(\d+)\]")
@@ -28,7 +29,7 @@ class KnowledgeAnswerer:
     def __init__(
         self,
         settings: Settings,
-        retriever: HybridRetriever,
+        retriever: Retriever,
         llm: LLMClient,
         prompt_version: str = "v1",
     ) -> None:
@@ -38,7 +39,14 @@ class KnowledgeAnswerer:
         self.prompt_version = prompt_version
         self.system_prompt = PROMPTS[prompt_version]
 
-    def answer(self, question: str, model: str | None = None) -> RagAnswer:
+    def answer(
+        self,
+        question: str,
+        model: str | None = None,
+        history: list[tuple[str, str]] | None = None,
+    ) -> RagAnswer:
+        """Answer `question`. `history` is prior (role, content) turns; retrieval uses only
+        the current question, the prompt includes the conversation."""
         t0 = time.perf_counter()
         model = model or self.settings.flash_model
         retrieved = self.retriever.retrieve(question)
@@ -60,10 +68,12 @@ class KnowledgeAnswerer:
             [(m, r.chunk.title, r.chunk.section, r.chunk.text) for m, r in markers.items()]
         )
         resp = self.llm.generate(
-            build_user_prompt(question, sources_block), model=model, system=self.system_prompt
+            build_user_prompt(question, sources_block, history),
+            model=model,
+            system=self.system_prompt,
         )
         text = resp.text.strip()
-        base = dict(
+        base: dict[str, Any] = dict(
             question=question,
             confidence=confidence,
             model=resp.model,
@@ -74,7 +84,7 @@ class KnowledgeAnswerer:
 
         if INSUFFICIENT in text:
             return RagAnswer(
-                **base,  # type: ignore[arg-type]
+                **base,
                 answer=LOW_CONFIDENCE_MESSAGE,
                 refused=True,
                 refusal_reason="model_insufficient_context",
@@ -83,7 +93,7 @@ class KnowledgeAnswerer:
 
         cleaned, citations, invalid = resolve_citations(text, markers)
         return RagAnswer(
-            **base,  # type: ignore[arg-type]
+            **base,
             answer=cleaned,
             citations=citations,
             invalid_citation_markers=invalid,

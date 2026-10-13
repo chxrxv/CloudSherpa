@@ -12,7 +12,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from pydantic import BaseModel
+
 from core.config import Settings, get_settings
+
+# HTTP status codes worth retrying (rate limit, transient server errors).
+_RETRYABLE = {429, 500, 502, 503, 504}
 
 
 @dataclass
@@ -32,11 +37,16 @@ class LLMClient(Protocol):
         model: str,
         system: str | None = None,
         temperature: float | None = None,
+        response_schema: type[BaseModel] | None = None,
     ) -> LLMResponse: ...
 
 
 class MissingCredentialsError(RuntimeError):
     pass
+
+
+class LLMCallError(RuntimeError):
+    """Raised after retries are exhausted; callers record it rather than guessing an output."""
 
 
 class GeminiClient:
@@ -69,15 +79,18 @@ class GeminiClient:
         model: str,
         system: str | None = None,
         temperature: float | None = None,
+        response_schema: type[BaseModel] | None = None,
     ) -> LLMResponse:
         from google.genai import types
 
         config = types.GenerateContentConfig(
             system_instruction=system,
             temperature=self.settings.llm_temperature if temperature is None else temperature,
+            response_mime_type="application/json" if response_schema else None,
+            response_schema=response_schema,
         )
         t0 = time.perf_counter()
-        resp = self._client.models.generate_content(model=model, contents=prompt, config=config)
+        resp = self._call_with_retry(model, prompt, config)
         latency_ms = (time.perf_counter() - t0) * 1000
         usage = resp.usage_metadata
         return LLMResponse(
@@ -92,6 +105,20 @@ class GeminiClient:
             ),
             latency_ms=latency_ms,
         )
+
+    def _call_with_retry(self, model: str, prompt: str, config: Any, attempts: int = 5) -> Any:
+        from google.genai import errors
+
+        for n in range(attempts):
+            try:
+                return self._client.models.generate_content(
+                    model=model, contents=prompt, config=config
+                )
+            except errors.APIError as exc:
+                if exc.code not in _RETRYABLE or n == attempts - 1:
+                    raise LLMCallError(f"{model}: {exc.code} {exc.message}") from exc
+                time.sleep(min(2**n * 2, 30))
+        raise AssertionError("unreachable")
 
     @property
     def raw(self) -> Any:
@@ -113,8 +140,11 @@ class FakeLLM:
         model: str,
         system: str | None = None,
         temperature: float | None = None,
+        response_schema: type[BaseModel] | None = None,
     ) -> LLMResponse:
-        self.calls.append({"prompt": prompt, "model": model, "system": system})
+        self.calls.append(
+            {"prompt": prompt, "model": model, "system": system, "schema": response_schema}
+        )
         text = self.responder(prompt)
         return LLMResponse(
             text=text,

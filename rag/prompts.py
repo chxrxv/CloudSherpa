@@ -24,5 +24,11 @@ def format_sources(blocks: list[tuple[str, str, str, str]]) -> str:
     return "\n\n".join(parts)
 
 
-def build_user_prompt(question: str, sources_block: str) -> str:
-    return f"Sources:\n\n{sources_block}\n\n---\nQuestion: {question}"
+def build_user_prompt(
+    question: str, sources_block: str, history: list[tuple[str, str]] | None = None
+) -> str:
+    convo = ""
+    if history:
+        lines = [f"{role.capitalize()}: {content}" for role, content in history]
+        convo = "Conversation so far:\n" + "\n".join(lines) + "\n\n"
+    return f"Sources:\n\n{sources_block}\n\n---\n{convo}Question: {question}"

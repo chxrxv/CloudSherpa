@@ -5,6 +5,8 @@ Each stage is switchable from config (`retrieval_mode`, `reranker`) so evals can
 
 from __future__ import annotations
 
+from typing import Protocol
+
 from core.config import Settings
 from rag.bm25 import BM25Index
 from rag.chunking import embedding_text
@@ -13,6 +15,10 @@ from rag.index import read_chunks
 from rag.reranker import CrossEncoderReranker, Reranker, sigmoid
 from rag.schemas import Chunk, RetrievedChunk
 from rag.vectorstores import VectorStore, load_vector_store
+
+
+class Retriever(Protocol):
+    def retrieve(self, query: str, top_k: int | None = None) -> list[RetrievedChunk]: ...
 
 
 def reciprocal_rank_fusion(rankings: list[list[str]], k: int = 60) -> list[tuple[str, float]]:

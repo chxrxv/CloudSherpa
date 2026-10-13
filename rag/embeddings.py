@@ -99,4 +99,6 @@ def make_embedder(settings: Settings) -> Embedder:
         return FastEmbedEmbedder(settings.local_embedding_model)
     if settings.embedding_provider == "gemini":
         return GeminiEmbedder(settings)
+    if settings.embedding_provider == "hash":
+        return HashEmbedder()
     raise ValueError(f"unknown embedding provider {settings.embedding_provider!r}")

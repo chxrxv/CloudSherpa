@@ -34,13 +34,17 @@ class Settings(BaseSettings):
     pro_model: str = "gemini-3.1-pro-preview"
     llm_temperature: float = 0.2
     llm_timeout_s: float = 120.0
+    # LLM-as-judge: pinned, and deliberately a different model from the one under test.
+    judge_model: str = "gemini-3.1-pro-preview"
+    price_table: Path = REPO_ROOT / "core" / "pricing.yaml"
 
     # --- Corpus & index ---------------------------------------------------------------
     data_dir: Path = REPO_ROOT / "data"
     corpus_sources: Path = REPO_ROOT / "rag" / "sources.yaml"
 
     # --- Retrieval --------------------------------------------------------------------
-    embedding_provider: Literal["local", "gemini"] = "local"
+    # "hash" is a dependency-free bag-of-words embedder for CI smoke runs only.
+    embedding_provider: Literal["local", "gemini", "hash"] = "local"
     local_embedding_model: str = "BAAI/bge-small-en-v1.5"
     gemini_embedding_model: str = "gemini-embedding-001"
     vector_store: Literal["faiss", "vertex"] = "faiss"
@@ -72,11 +76,11 @@ class Settings(BaseSettings):
     @property
     def index_dir(self) -> Path:
         # One index per (embedder, chunking) combination so eval variants don't collide.
-        emb = (
-            self.local_embedding_model
-            if self.embedding_provider == "local"
-            else (self.gemini_embedding_model)
-        )
+        emb = {
+            "local": self.local_embedding_model,
+            "gemini": self.gemini_embedding_model,
+            "hash": "hash-256",
+        }[self.embedding_provider]
         tag = f"{self.embedding_provider}-{emb.replace('/', '_')}-{self.chunking_strategy}"
         tag += f"-{self.chunk_size}-{self.chunk_overlap}"
         tag += "-ctx" if self.contextual_headers else ""
@@ -93,6 +97,7 @@ class Settings(BaseSettings):
         keys = [
             "flash_model",
             "pro_model",
+            "judge_model",
             "llm_temperature",
             "embedding_provider",
             "local_embedding_model",
