@@ -51,6 +51,47 @@
     "input_tokens": 0,
     "output_tokens": 0
   },
+  "refusal_confusion": {
+    "matrix": {
+      "should_refuse": {
+        "refused": 10,
+        "answered": 0,
+        "no_decision": 1,
+        "error": 0,
+        "not_run": 0,
+        "n": 11
+      },
+      "should_answer": {
+        "refused": 6,
+        "answered": 0,
+        "no_decision": 33,
+        "error": 0,
+        "not_run": 0,
+        "n": 39
+      }
+    },
+    "over_refusal": {
+      "n": 39,
+      "count": 6,
+      "undecided": 33,
+      "lower": 0.15384615384615385,
+      "upper": 1.0
+    },
+    "under_refusal_all": {
+      "n": 11,
+      "count": 0,
+      "undecided": 1,
+      "lower": 0.0,
+      "upper": 0.09090909090909091
+    },
+    "under_refusal_out_of_scope": {
+      "n": 8,
+      "count": 0,
+      "undecided": 1,
+      "lower": 0.0,
+      "upper": 0.125
+    }
+  },
   "by_category": {
     "architecture": {
       "n": 15,
