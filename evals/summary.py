@@ -50,7 +50,11 @@ def summarize(records: list[RunRecord], scenarios: dict[str, Scenario]) -> dict[
     by_cat: dict[str, list[RunRecord]] = defaultdict(list)
     for r in records:
         by_cat[r.category].append(r)
-    judge_cost = [r.judge.get("judge_cost_usd") for r in records if r.judge]
+    judged = [r.judge for r in records if r.judge]
+
+    def _total(key: str) -> int:
+        return sum(int(j.get(key, 0) or 0) for j in judged)  # type: ignore[call-overload]
+
     return {
         "overall": _group(records),
         "by_category": {c: _group(by_cat[c]) for c in CATEGORY_ORDER if c in by_cat},
@@ -66,7 +70,14 @@ def summarize(records: list[RunRecord], scenarios: dict[str, Scenario]) -> dict[
             }
             for r in records
         ],
-        "judge_cost_total_usd": sum(c for c in judge_cost if isinstance(c, int | float))
-        if judge_cost and all(isinstance(c, int | float) for c in judge_cost)
-        else None,
+        "judge": {
+            "backends": sorted(
+                {f"{j.get('judge_backend')}:{j.get('judge_model')}" for j in judged}
+            ),
+            "requests": _total("judge_requests"),
+            "cache_hits": _total("judge_cache_hits"),
+            "input_tokens": _total("judge_input_tokens"),
+            "output_tokens": _total("judge_output_tokens"),
+            "cost_usd": 0.0,  # free tier or local backend
+        },
     }

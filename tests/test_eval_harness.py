@@ -1,4 +1,4 @@
-"""Harness tests: runner loop, poisoned retrieval, judge parsing, pricing, labels, report.
+"""Harness tests: runner loop, poisoned retrieval, judge parsing, labels, report.
 
 Includes the 5-scenario smoke subset run end-to-end with a mocked model, so CI exercises the
 whole eval path without credentials.
@@ -6,15 +6,13 @@ whole eval path without credentials.
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 from pathlib import Path
 
 import pytest
 
 from core.config import Settings
-from core.llm import FakeLLM, LLMCallError, LLMResponse
-from core.pricing import PriceEntry, PriceTable, load_price_table
+from core.llm import FakeLLM, LLMCallError
 from evals import labels as labels_mod
 from evals import report as report_mod
 from evals.judge import (
@@ -29,18 +27,15 @@ from evals.systems import POISON_DOC_ID, PoisonedRetriever, RagSystem, RunRecord
 from tests.conftest import KeywordReranker, make_retriever
 
 GOLDEN = load_scenarios()
-PRICES = PriceTable(
-    source="test",
-    retrieved="2026-10-13",
-    models={"m": [PriceEntry(effective_from=dt.date(2026, 1, 1), input=1.0, output=10.0)]},
-)
 
 
 def _system(settings: Settings, llm: object | None = None) -> RagSystem:
     s = settings.model_copy(update={"flash_model": "m"})
     return RagSystem(
-        s, make_retriever(s, KeywordReranker()), llm or FakeLLM(mock_responder), PRICES
-    )  # type: ignore[arg-type]
+        s,
+        make_retriever(s, KeywordReranker()),
+        llm or FakeLLM(mock_responder),  # type: ignore[arg-type]
+    )
 
 
 # --- subset selection -------------------------------------------------------------------
@@ -69,7 +64,7 @@ def test_poisoned_retriever_plants_doc_at_rank_one(settings: Settings) -> None:
     assert res[0].confidence == max(r.confidence for r in base.retrieve("spot vm preemption"))
 
 
-def test_rag_system_records_retrieval_citations_and_cost(settings: Settings) -> None:
+def test_rag_system_records_retrieval_citations_and_requests(settings: Settings) -> None:
     sc = Scenario(
         id="t",
         category="architecture",
@@ -80,7 +75,7 @@ def test_rag_system_records_retrieval_citations_and_cost(settings: Settings) -> 
     )
     rec = _system(settings).run(sc)
     assert not rec.refused and rec.cited and rec.cited[0].doc_id == rec.retrieved[0].doc_id
-    assert rec.model == "m" and rec.cost_usd is not None and rec.cost_usd > 0
+    assert rec.model == "m" and rec.llm_requests == 1 and rec.generated
     assert rec.retrieved[0].text  # contexts kept for offline re-judging
 
 
@@ -103,7 +98,7 @@ def test_rag_system_multi_turn_passes_history(settings: Settings) -> None:
     assert prompt.rstrip().endswith("Question: spot vm preemption?")
 
 
-def test_refusal_before_llm_has_zero_cost(settings: Settings) -> None:
+def test_refusal_before_llm_makes_no_requests(settings: Settings) -> None:
     sc = Scenario(
         id="t",
         category="out_of_scope",
@@ -112,7 +107,7 @@ def test_refusal_before_llm_has_zero_cost(settings: Settings) -> None:
         should_refuse=True,
     )
     rec = _system(settings).run(sc)
-    assert rec.refused and rec.cost_usd == 0.0 and rec.input_tokens == 0
+    assert rec.refused and rec.llm_requests == 0 and rec.input_tokens == 0
 
 
 # --- runner -------------------------------------------------------------------------------
@@ -205,7 +200,7 @@ def test_applicable_judgements() -> None:
     assert applicable_judgements(r, oos) == []
 
 
-def test_llm_judge_parses_structured_verdicts_and_costs() -> None:
+def test_llm_judge_parses_structured_verdicts_and_counts_usage() -> None:
     def respond(prompt: str) -> str:
         if "groundedness" in prompt:
             return json.dumps(
@@ -228,24 +223,24 @@ def test_llm_judge_parses_structured_verdicts_and_costs() -> None:
         )
 
     llm = FakeLLM(respond)
-    out = LLMJudge(llm, "m", PRICES).judge(*_scored("Spot VMs are cheap and never stop."))
+    out = LLMJudge(llm, "m", "gemini").judge(*_scored("Spot VMs are cheap and never stop."))
     assert out["groundedness"]["score"] == 0.5  # type: ignore[index]
     assert out["groundedness"]["unsupported"] == ["Spot VMs never stop"]  # type: ignore[index]
     assert out["correctness"]["score"] == 0.5  # type: ignore[index]
     assert out["correctness"]["contradicted"] == ["fact b"]  # type: ignore[index]
     assert all(c["model"] == "m" and c["schema"] is not None for c in llm.calls)
-    assert out["judge_cost_usd"] is not None and out["judge_cost_usd"] > 0  # type: ignore[operator]
+    assert out["judge_requests"] == 2 and out["judge_backend"] == "gemini"
 
 
 def test_llm_judge_records_malformed_json_as_error_not_score() -> None:
-    out = LLMJudge(FakeLLM(lambda p: "not json"), "m", PRICES).judge(*_scored("x"))
+    out = LLMJudge(FakeLLM(lambda p: "not json"), "m", "gemini").judge(*_scored("x"))
     assert out["correctness"]["score"] is None and "error" in out["correctness"]  # type: ignore[index]
 
 
 def test_llm_judge_skips_call_for_wrong_refusal() -> None:
     llm = FakeLLM(lambda p: "{}")
     r, sc = _scored("I can't help with that.")
-    out = LLMJudge(llm, "m", PRICES).judge(r, sc)
+    out = LLMJudge(llm, "m", "gemini").judge(r, sc)
     assert out["correctness"] == {"score": 0.0, "note": "refused"} and llm.calls == []
 
 
@@ -254,26 +249,6 @@ def test_correctness_verdict_schema_rejects_unknown_status() -> None:
         CorrectnessVerdict.model_validate(
             {"facts": [{"fact": "a", "status": "maybe"}], "reasoning": ""}
         )
-
-
-# --- pricing ------------------------------------------------------------------------------
-
-
-def test_price_table_effective_dates_and_unpriced_models() -> None:
-    t = load_price_table()
-    jan = dt.date(2027, 1, 2)
-    oct_ = dt.date(2026, 10, 13)
-    assert t.cost_usd("gemini-3.8-flash", 1_000_000, 0, on=oct_) == pytest.approx(0.75)
-    assert t.cost_usd("gemini-3.8-flash", 1_000_000, 0, on=jan) == pytest.approx(1.50)
-    assert t.cost_usd("not-a-model", 10, 10) is None
-
-
-def test_price_table_long_context_rates() -> None:
-    t = load_price_table()
-    short = t.cost_usd("gemini-3.1-pro-preview", 100_000, 1_000_000, on=dt.date(2026, 10, 13))
-    long = t.cost_usd("gemini-3.1-pro-preview", 300_000, 0, on=dt.date(2026, 10, 13))
-    assert short == pytest.approx(0.2 + 12.0)
-    assert long == pytest.approx(1.2)
 
 
 # --- labels + report ------------------------------------------------------------------------
@@ -335,25 +310,3 @@ def test_agreement_from_filled_labels(
     a = labels_mod.agreement("a", lp)
     assert a is not None and a["n"] == 2 and a["agreement"] == 0.5
     assert a["disagreements"] == ["pii-02/correctness"]
-
-
-def test_gemini_client_retries_then_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    from google.genai import errors
-
-    from core.llm import GeminiClient
-
-    calls = {"n": 0}
-
-    class _Models:
-        def generate_content(self, **_: object) -> LLMResponse:
-            calls["n"] += 1
-            raise errors.APIError(
-                429, {"error": {"message": "quota", "status": "RESOURCE_EXHAUSTED"}}
-            )
-
-    client = object.__new__(GeminiClient)
-    client._client = type("C", (), {"models": _Models()})()  # type: ignore[attr-defined]
-    monkeypatch.setattr("core.llm.time.sleep", lambda _s: None)
-    with pytest.raises(LLMCallError, match="429"):
-        client._call_with_retry("m", "p", None, attempts=3)
-    assert calls["n"] == 3

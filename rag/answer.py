@@ -39,6 +39,15 @@ class KnowledgeAnswerer:
         self.prompt_version = prompt_version
         self.system_prompt = PROMPTS[prompt_version]
 
+    def retrieve_and_gate(self, question: str) -> tuple[list[RetrievedChunk], float, bool]:
+        """Retrieval + low-confidence gate: (chunks, top confidence, passes gate).
+
+        This is the whole pipeline up to the LLM call; the no-network eval baseline uses it.
+        """
+        retrieved = self.retriever.retrieve(question)
+        confidence = max((r.confidence for r in retrieved), default=0.0)
+        return retrieved, confidence, confidence >= self.settings.min_confidence
+
     def answer(
         self,
         question: str,
@@ -49,10 +58,9 @@ class KnowledgeAnswerer:
         the current question, the prompt includes the conversation."""
         t0 = time.perf_counter()
         model = model or self.settings.flash_model
-        retrieved = self.retriever.retrieve(question)
-        confidence = max((r.confidence for r in retrieved), default=0.0)
+        retrieved, confidence, passes_gate = self.retrieve_and_gate(question)
 
-        if confidence < self.settings.min_confidence:
+        if not passes_gate:
             return RagAnswer(
                 question=question,
                 answer=LOW_CONFIDENCE_MESSAGE,
@@ -80,6 +88,7 @@ class KnowledgeAnswerer:
             retrieved=retrieved,
             input_tokens=resp.input_tokens,
             output_tokens=resp.output_tokens,
+            llm_requests=resp.requests,
         )
 
         if INSUFFICIENT in text:

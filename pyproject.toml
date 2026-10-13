@@ -22,6 +22,7 @@ dependencies = [
     "faiss-cpu>=1.8",
     "fastembed>=0.4",
     "google-genai>=1.0",
+    "tzdata>=2024.1",  # zoneinfo data on Windows (Pacific-time daily quota reset)
 ]
 
 [project.optional-dependencies]

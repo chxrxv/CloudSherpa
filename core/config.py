@@ -15,6 +15,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+class FreeTierViolation(RuntimeError):
+    """A configuration or call that could incur charges while FREE_TIER_ONLY is set."""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=REPO_ROOT / ".env",
@@ -23,20 +27,51 @@ class Settings(BaseSettings):
     )
 
     # --- LLM access -------------------------------------------------------------------
-    # Either GEMINI_API_KEY (Gemini Developer API) or Vertex AI (ADC credentials).
+    # Free tier only: a Gemini API key from Google AI Studio on a project WITHOUT billing.
+    # The Vertex AI path is kept in code but blocked while FREE_TIER_ONLY is true.
     gemini_api_key: str | None = None
     google_genai_use_vertexai: bool = False
     google_cloud_project: str | None = None
     google_cloud_location: str = "us-central1"
 
-    # Model routing: Flash for cheap/simple steps, Pro for the architect step.
+    free_tier_only: bool = True
+    # Models whose Gemini API pricing page lists a free tier ("Free of charge"), verified
+    # 2026-10-13 at https://ai.google.dev/gemini-api/docs/pricing. Pro has no free tier.
+    free_tier_models: list[str] = [
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-embedding-2",
+    ]
+
+    # Model routing (free tier: Flash-class only). `flash_model` answers questions;
+    # `strong_model` is reserved for the architect step (phase 3).
     flash_model: str = "gemini-3.8-flash"
-    pro_model: str = "gemini-3.1-pro-preview"
+    strong_model: str = "gemini-3.8-flash"
     llm_temperature: float = 0.2
     llm_timeout_s: float = 120.0
-    # LLM-as-judge: pinned, and deliberately a different model from the one under test.
-    judge_model: str = "gemini-3.1-pro-preview"
-    price_table: Path = REPO_ROOT / "core" / "pricing.yaml"
+
+    # --- Free-tier rate limiting (per model) -----------------------------------------
+    # Google no longer publishes numeric free-tier limits; they are shown per project in
+    # AI Studio. These defaults are conservative placeholders, NOT documented limits: copy
+    # your project's values from AI Studio into .env.
+    llm_rpm: float = 5.0  # requests per minute, sliding 60 s window
+    llm_daily_request_budget: int = 100  # per model per Pacific-time day; run aborts cleanly
+    llm_max_retries: int = 6  # attempts on 429/5xx before giving up
+    llm_backoff_base_s: float = 4.0  # exponential: base * 2**attempt (+ jitter), capped
+    llm_backoff_max_s: float = 120.0
+    usage_dir: Path = REPO_ROOT / "data" / "usage"  # persisted daily request counts
+
+    # --- LLM-as-judge -----------------------------------------------------------------
+    # Pinned, free-tier, and deliberately a different model from the one under test.
+    # backend "openai_compat" targets a local OpenAI-compatible server (e.g. Ollama) as a
+    # fallback when the free quota is exhausted; set JUDGE_MODEL to the local model name.
+    judge_backend: Literal["gemini", "openai_compat"] = "gemini"
+    judge_model: str = "gemini-3.6-flash"
+    judge_base_url: str = "http://localhost:11434/v1"
+    judge_api_key: str | None = None
+    judge_cache_dir: Path = REPO_ROOT / "evals" / "cache" / "judge"
 
     # --- Corpus & index ---------------------------------------------------------------
     data_dir: Path = REPO_ROOT / "data"
@@ -46,7 +81,7 @@ class Settings(BaseSettings):
     # "hash" is a dependency-free bag-of-words embedder for CI smoke runs only.
     embedding_provider: Literal["local", "gemini", "hash"] = "local"
     local_embedding_model: str = "BAAI/bge-small-en-v1.5"
-    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_embedding_model: str = "gemini-embedding-2"
     vector_store: Literal["faiss", "vertex"] = "faiss"
 
     chunking_strategy: Literal["fixed", "markdown"] = "fixed"
@@ -89,14 +124,32 @@ class Settings(BaseSettings):
     @property
     def has_llm_credentials(self) -> bool:
         if self.google_genai_use_vertexai:
-            return bool(self.google_cloud_project)
+            return bool(self.google_cloud_project) and not self.free_tier_only
         return bool(self.gemini_api_key)
+
+    def check_free_tier(self, model: str | None = None) -> None:
+        """Raise FreeTierViolation if the configured path or `model` could incur charges."""
+        if not self.free_tier_only:
+            return
+        if self.google_genai_use_vertexai:
+            raise FreeTierViolation(
+                "Vertex AI is a billed path; FREE_TIER_ONLY=true allows only a Gemini API key "
+                "from Google AI Studio (project without billing)."
+            )
+        if self.vector_store == "vertex":
+            raise FreeTierViolation("VECTOR_STORE=vertex is billed; use faiss.")
+        if model is not None and model not in self.free_tier_models:
+            raise FreeTierViolation(
+                f"Model {model!r} is not in FREE_TIER_MODELS {self.free_tier_models}."
+            )
 
     def snapshot(self) -> dict[str, object]:
         """Config values that affect results (no secrets) — recorded with every eval run."""
         keys = [
+            "free_tier_only",
             "flash_model",
-            "pro_model",
+            "strong_model",
+            "judge_backend",
             "judge_model",
             "llm_temperature",
             "embedding_provider",

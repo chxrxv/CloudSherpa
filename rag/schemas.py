@@ -53,4 +53,5 @@ class RagAnswer(BaseModel):
     retrieved: list[RetrievedChunk] = Field(default_factory=list)
     input_tokens: int = 0
     output_tokens: int = 0
+    llm_requests: int = 0
     latency_ms: float = 0.0

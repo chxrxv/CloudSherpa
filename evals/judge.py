@@ -5,6 +5,10 @@
 - Claim- and fact-level verdicts (not a single 1-10 vibe score), so scores are explainable and
   disagreements with human labels can be traced to a specific claim.
 - Judge prompts live here, under evals/, which is never part of the retrieval corpus.
+- Backends: Gemini (free tier) or any OpenAI-compatible endpoint such as a local Ollama
+  server. Every verdict records backend + model: scores from different judges are not
+  comparable. Calls are cached on disk (evals/judge_cache.py) so quota-interrupted runs resume
+  without repeating them. A quota-exhaustion error is never swallowed; it stops the run.
 
 Judge scores are reported as UNVALIDATED until judge-vs-human agreement is measured on
 evals/judge_labels.jsonl.
@@ -12,12 +16,13 @@ evals/judge_labels.jsonl.
 
 from __future__ import annotations
 
+import json
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, ValidationError
 
-from core.llm import LLMCallError, LLMClient
-from core.pricing import PriceTable
+from core.llm import LLMCallError, LLMClient, QuotaExhaustedError
+from evals.judge_cache import JudgeCache
 from evals.metrics import behaved_as_refusal
 from evals.schema import Scenario
 from evals.systems import RunRecord
@@ -136,6 +141,7 @@ def _conversation(sc: Scenario) -> str:
 
 class Judge(Protocol):
     model: str
+    backend: str
 
     def judge(self, rec: RunRecord, sc: Scenario) -> dict[str, object]: ...
 
@@ -156,12 +162,26 @@ def applicable_judgements(rec: RunRecord, sc: Scenario) -> list[str]:
 
 
 class LLMJudge:
-    def __init__(self, llm: LLMClient, model: str, prices: PriceTable) -> None:
+    def __init__(
+        self, llm: LLMClient, model: str, backend: str, cache: JudgeCache | None = None
+    ) -> None:
         self.llm = llm
         self.model = model
-        self.prices = prices
+        self.backend = backend
+        self.cache = cache
 
-    def _ask(self, prompt: str, schema: type[BaseModel]) -> tuple[BaseModel, int, int]:
+    def _ask(self, prompt: str, schema: type[BaseModel]) -> tuple[BaseModel, dict[str, int]]:
+        key = JudgeCache.key(
+            backend=self.backend,
+            model=self.model,
+            system=JUDGE_SYSTEM,
+            prompt=prompt,
+            schema=json.dumps(schema.model_json_schema(), sort_keys=True),
+            temperature=0.0,
+        )
+        if self.cache is not None and (hit := self.cache.get(key)) is not None:
+            usage = {"requests": 0, "cache_hits": 1, "in": 0, "out": 0}
+            return schema.model_validate_json(hit["text"]), usage
         resp = self.llm.generate(
             prompt,
             model=self.model,
@@ -169,11 +189,33 @@ class LLMJudge:
             temperature=0.0,
             response_schema=schema,
         )
-        return schema.model_validate_json(resp.text), resp.input_tokens, resp.output_tokens
+        verdict = schema.model_validate_json(resp.text)  # only valid verdicts get cached
+        if self.cache is not None:
+            self.cache.put(
+                key,
+                {
+                    "text": resp.text,
+                    "model": self.model,
+                    "backend": self.backend,
+                    "input_tokens": resp.input_tokens,
+                    "output_tokens": resp.output_tokens,
+                },
+            )
+        usage = {
+            "requests": resp.requests,
+            "cache_hits": 0,
+            "in": resp.input_tokens,
+            "out": resp.output_tokens,
+        }
+        return verdict, usage
 
     def judge(self, rec: RunRecord, sc: Scenario) -> dict[str, object]:
-        result: dict[str, object] = {"judge_model": self.model, "judge_version": JUDGE_VERSION}
-        tin = tout = 0
+        result: dict[str, object] = {
+            "judge_backend": self.backend,
+            "judge_model": self.model,
+            "judge_version": JUDGE_VERSION,
+        }
+        totals = {"requests": 0, "cache_hits": 0, "in": 0, "out": 0}
         for kind in applicable_judgements(rec, sc):
             try:
                 if kind == "correctness":
@@ -181,7 +223,7 @@ class LLMJudge:
                         # Should have answered but refused: deterministic zero, no judge call.
                         result["correctness"] = {"score": 0.0, "note": "refused"}
                         continue
-                    v, i, o = self._ask(
+                    v, usage = self._ask(
                         CORRECTNESS_PROMPT.format(
                             question=_conversation(sc),
                             reference=sc.expected,
@@ -193,14 +235,14 @@ class LLMJudge:
                     assert isinstance(v, CorrectnessVerdict)
                     result["correctness"] = score_correctness(v)
                 elif kind == "groundedness":
-                    v, i, o = self._ask(
+                    v, usage = self._ask(
                         GROUNDEDNESS_PROMPT.format(context=_context_block(rec), answer=rec.answer),
                         GroundednessVerdict,
                     )
                     assert isinstance(v, GroundednessVerdict)
                     result["groundedness"] = score_groundedness(v)
                 else:
-                    v, i, o = self._ask(
+                    v, usage = self._ask(
                         CLARIFICATION_PROMPT.format(
                             dimensions=", ".join(sc.key_facts),
                             question=_conversation(sc),
@@ -210,12 +252,17 @@ class LLMJudge:
                     )
                     assert isinstance(v, ClarificationVerdict)
                     result["clarification"] = score_clarification(v)
-                tin, tout = tin + i, tout + o
+                totals = {k: totals[k] + usage[k] for k in totals}
+            except QuotaExhaustedError:
+                raise  # the runner stops cleanly; the cache keeps what was already judged
             except (LLMCallError, ValidationError, ValueError) as exc:
                 result[kind] = {"score": None, "error": str(exc)[:300]}
-        result["judge_input_tokens"] = tin
-        result["judge_output_tokens"] = tout
-        result["judge_cost_usd"] = self.prices.cost_usd(self.model, tin, tout)
+        result.update(
+            judge_requests=totals["requests"],
+            judge_cache_hits=totals["cache_hits"],
+            judge_input_tokens=totals["in"],
+            judge_output_tokens=totals["out"],
+        )
         return result
 
 
@@ -257,10 +304,17 @@ class MockJudge:
     """For CI smoke runs only: exercises the plumbing, produces NO quality signal."""
 
     model = "mock-judge"
+    backend = "mock"
 
     def judge(self, rec: RunRecord, sc: Scenario) -> dict[str, object]:
-        out: dict[str, object] = {"judge_model": self.model, "judge_version": JUDGE_VERSION}
+        out: dict[str, object] = {
+            "judge_backend": self.backend,
+            "judge_model": self.model,
+            "judge_version": JUDGE_VERSION,
+        }
         for kind in applicable_judgements(rec, sc):
             out[kind] = {"score": 0.5, "note": "mock"}
-        out.update(judge_input_tokens=0, judge_output_tokens=0, judge_cost_usd=0.0)
+        out.update(
+            judge_requests=0, judge_cache_hits=0, judge_input_tokens=0, judge_output_tokens=0
+        )
         return out

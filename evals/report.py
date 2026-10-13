@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 from evals.labels import judge_validation_status
-from evals.run import RUNS_DIR
+from evals.run import RUNS_DIR, read_results
 from evals.summary import CATEGORY_ORDER
 from evals.systems import RunRecord
 
@@ -40,8 +40,7 @@ def load_run(tag: str) -> tuple[dict, dict, list[RunRecord]]:
         raise SystemExit(f"no run at {d}")
     meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
     summary = json.loads((d / "summary.json").read_text(encoding="utf-8"))
-    with (d / "results.jsonl").open(encoding="utf-8") as f:
-        recs = [RunRecord.model_validate_json(line) for line in f if line.strip()]
+    recs = list(read_results(d / "results.jsonl").values())
     return meta, summary, recs
 
 
@@ -63,8 +62,10 @@ def _ms(v: float | None) -> str:
     return "—" if v is None else f"{v / 1000:.2f} s"
 
 
-def _usd(v: float | None) -> str:
-    return "unpriced" if v is None else f"${v:.5f}"
+def _judge_label(meta: dict) -> str:
+    j = meta.get("judge") or {}
+    label = f"{j.get('backend')}:{j.get('model')}"
+    return label + (f" @ {j['base_url']}" if j.get("base_url") else "")
 
 
 def _rows(summary: dict) -> list[tuple[str, dict]]:
@@ -92,22 +93,22 @@ def metric_table(
 
 def perf_table(summary: dict, base: dict | None = None) -> str:
     lines = [
-        "| Category | p50 latency | p95 latency | Cost / query | Errors |",
-        "|---|---|---|---|---|",
+        "| Category | p50 latency | p95 latency | LLM requests | Tokens in / out | Cost | Errors |",
+        "|---|---|---|---|---|---|---|",
     ]
     base_rows = dict(_rows(base)) if base else {}
     for name, g in _rows(summary):
         b = base_rows.get(name)
-        p50, p95, cost = (
-            _ms(g["latency_p50_ms"]),
-            _ms(g["latency_p95_ms"]),
-            _usd(g["cost_per_query_usd"]),
-        )
+        p50, p95 = _ms(g["latency_p50_ms"]), _ms(g["latency_p95_ms"])
+        reqs = str(g.get("llm_requests", 0))
         if b:
             p50 = f"{_ms(b['latency_p50_ms'])} → {p50}"
             p95 = f"{_ms(b['latency_p95_ms'])} → {p95}"
-            cost = f"{_usd(b['cost_per_query_usd'])} → {cost}"
-        lines.append(f"| {name} | {p50} | {p95} | {cost} | {g['errors']} |")
+            reqs = f"{b.get('llm_requests', 0)} → {reqs}"
+        tokens = f"{g.get('input_tokens', 0):,} / {g.get('output_tokens', 0):,}"
+        lines.append(
+            f"| {name} | {p50} | {p95} | {reqs} | {tokens} | $0 (free tier) | {g['errors']} |"
+        )
     return "\n".join(lines)
 
 
@@ -143,7 +144,7 @@ def worst(summary: dict, recs: list[RunRecord], k: int) -> str:
 
 def render(tag: str, compare: str | None = None, k_worst: int = 3) -> str:
     meta, summary, recs = load_run(tag)
-    base = load_run(compare)[1] if compare else None
+    base_meta, base = (load_run(compare)[:2]) if compare else (None, None)
     git = meta.get("git", {})
     cfg = meta.get("config", {})
     lines = [f"# Eval report: `{tag}`" + (f" vs `{compare}`" if compare else ""), ""]
@@ -155,12 +156,26 @@ def render(tag: str, compare: str | None = None, k_worst: int = 3) -> str:
         ]
     if meta.get("aborted"):
         lines += [f"> **INCOMPLETE RUN** — {meta['aborted']}", ""]
+    if meta.get("mode") == "no_llm":
+        lines += [
+            "> **Deterministic, retrieval-only run** — no LLM calls (network blocked). "
+            "Generation-dependent metrics are N/A unless the retrieval gate refused.",
+            "",
+        ]
+    if base_meta is not None and _judge_label(base_meta) != _judge_label(meta):
+        lines += [
+            f"> **Judge differs** (`{_judge_label(base_meta)}` vs `{_judge_label(meta)}`): "
+            "judge-metric deltas are NOT comparable. Deterministic metrics are.",
+            "",
+        ]
     lines += [
         f"- Date: {meta.get('started_at')}",
         f"- Commit: `{(git.get('commit') or 'unknown')[:10]}`"
         + (" (dirty working tree)" if git.get("dirty") else ""),
         f"- System: {meta.get('system')} (prompt {meta.get('prompt_version')}); "
-        f"generator `{cfg.get('flash_model')}`; judge `{meta.get('judge_model')}`",
+        f"generator `{cfg.get('flash_model') if meta.get('mode') != 'no_llm' else 'none'}`; "
+        f"judge `{_judge_label(meta)}`",
+        f"- Billing: {meta.get('billing')}; rate limits {meta.get('rate_limits')}",
         f"- Retrieval: {cfg.get('retrieval_mode')} / {cfg.get('chunking_strategy')} chunks "
         f"({cfg.get('chunk_size')}/{cfg.get('chunk_overlap')}) / reranker {cfg.get('reranker')}"
         f" / top_k {cfg.get('top_k')} / min_confidence {cfg.get('min_confidence')}",
@@ -177,11 +192,11 @@ def render(tag: str, compare: str | None = None, k_worst: int = 3) -> str:
         "",
         metric_table(summary, JUDGE_COLS, base),
         "",
-        "## Latency and cost (system under test; judge cost excluded)",
+        "## Latency, requests and cost (system under test)",
         "",
         perf_table(summary, base),
         "",
-        f"Judge cost for this run: {_usd(summary.get('judge_cost_total_usd'))}",
+        _judge_usage(summary),
         "",
         f"## {k_worst} worst scenarios (lowest mean of applicable metrics)",
         "",
@@ -189,6 +204,18 @@ def render(tag: str, compare: str | None = None, k_worst: int = 3) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def _judge_usage(summary: dict) -> str:
+    j = summary.get("judge") or {}
+    if not j.get("backends"):
+        return "Judge: not run."
+    return (
+        f"Judge ({', '.join(j['backends'])}): {j.get('requests', 0)} requests, "
+        f"{j.get('cache_hits', 0)} cache hits, "
+        f"{j.get('input_tokens', 0):,} / {j.get('output_tokens', 0):,} tokens, "
+        "cost $0 (free tier / local)."
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

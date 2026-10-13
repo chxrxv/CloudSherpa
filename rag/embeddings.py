@@ -51,13 +51,17 @@ class GeminiEmbedder:
         from core.llm import GeminiClient
 
         self.name = settings.gemini_embedding_model
-        self._client = GeminiClient(settings).raw
+        settings.check_free_tier(self.name)
+        client = GeminiClient(settings)
+        self._governor = client.governor  # embedding batches count against the free quota
+        self._client = client.raw
 
     def _embed(self, texts: list[str], task_type: str) -> np.ndarray:
         from google.genai import types
 
         vecs: list[list[float]] = []
         for i in range(0, len(texts), self.BATCH):
+            self._governor.acquire(self.name)
             resp = self._client.models.embed_content(
                 model=self.name,
                 contents=texts[i : i + self.BATCH],
