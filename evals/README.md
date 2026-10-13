@@ -1,5 +1,34 @@
 # Evaluation harness
 
+## Running
+
+```bash
+python -m evals.run --tag baseline                # all 50 scenarios (Gemini API: costs credits)
+python -m evals.run --tag quick --subset 10       # stratified subset across all categories
+python -m evals.run --tag ci-smoke --smoke --mock # 5 scenarios, fake model + judge, free
+python -m evals.report baseline                   # Markdown tables by category + worst 3
+python -m evals.report improved --compare baseline
+python -m evals.labels baseline                   # blind labeling sheet for judge validation
+```
+
+`make eval`, `make eval-subset`, `make eval-smoke`, `make report` and `make labels` wrap these
+commands.
+
+Each run writes `evals/runs/<tag>/`:
+- `results.jsonl`: one record per scenario. It holds the answer, the retrieved chunks
+  (including their text, so judges can be re-run offline), citations, model, token counts,
+  latency, cost, deterministic metrics and judge verdicts.
+- `meta.json`: git commit and dirty flag, the full config snapshot, prompt version, judge
+  model, golden-set SHA-256, the price-table source, and whether the run was aborted.
+- `summary.json`: aggregates by category and overall, plus a per-scenario composite score.
+
+**Honesty guards.**
+- Without credentials, a non-mock run exits before writing anything.
+- After 3 consecutive API failures (for example rate limits) the run aborts and is marked
+  incomplete. The report says so, and failed scenarios count as errors rather than scores.
+- Mock runs are banner-labelled and not priced.
+- Judge metrics are labelled unvalidated until human labels exist.
+
 ## Golden set: `golden.jsonl`
 
 The golden set has 50 scenarios, one JSON object per line, validated by `evals/schema.py::Scenario`.

@@ -21,7 +21,11 @@ make index                   # chunk + embed the committed corpus (local model, 
 python scripts/ask.py --retrieve-only "How much notice does a Spot VM get?"   # no key needed
 make ask Q="When should I choose Spanner over Cloud SQL?"                       # needs a key
 make test                    # unit tests, no network or key
+make eval-smoke              # 5-scenario eval with a mocked model (what CI runs)
 ```
+
+No `make` on Windows? Each target is a plain `python …` command, listed in the `Makefile` and in
+[evals/README.md](evals/README.md).
 
 `make index` downloads two small ONNX models on first run (bge-small embeddings and the
 MiniLM cross-encoder, about 150 MB in total). The docs corpus is already in
@@ -98,7 +102,7 @@ agents/ tools/ mcp_server/ api/ ui/ infra/ evals/   later phases
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Scaffold, config, corpus ingestion, baseline hybrid RAG with citations | ✅ done |
-| 2 | Eval harness (50-scenario golden set, LLM-as-judge + deterministic metrics), baseline results | ⏳ |
+| 2 | Eval harness (50-scenario golden set, LLM-as-judge + deterministic metrics), baseline results | 🟡 harness + golden set done; baseline pending review and credentials |
 | 3 | ADK multi-agent flow, cost tools + MCP server, architect output | ⏳ |
 | 4 | Guardrails, observability, model routing | ⏳ |
 | 5 | FastAPI + SSE, web chat UI | ⏳ |

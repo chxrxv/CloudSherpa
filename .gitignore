@@ -9,6 +9,9 @@ __pycache__/
 # Built artifacts (rebuilt by `make index`); the ingested corpus itself IS committed.
 data/index/
 data/billing/*.duckdb
-evals/runs/*/raw/
+# Mock / CI / scratch eval runs are not committed; real baseline/improvement runs are.
+evals/runs/ci-*/
+evals/runs/dev*/
+evals/runs/mock*/
 .terraform/
 *.tfstate*
