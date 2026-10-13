@@ -13,5 +13,8 @@ data/billing/*.duckdb
 evals/runs/ci-*/
 evals/runs/dev*/
 evals/runs/mock*/
+# Judge-call cache and free-tier request counters are local state.
+evals/cache/
+data/usage/
 .terraform/
 *.tfstate*

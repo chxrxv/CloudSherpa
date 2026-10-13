@@ -16,7 +16,7 @@ Kit, with an evaluation harness.
 
 ```bash
 make install                 # venv + deps (Python 3.11)
-cp .env.example .env         # add GEMINI_API_KEY (or Vertex AI settings)
+cp .env.example .env         # add GEMINI_API_KEY (AI Studio key, project WITHOUT billing)
 make index                   # chunk + embed the committed corpus (local model, no key)
 python scripts/ask.py --retrieve-only "How much notice does a Spot VM get?"   # no key needed
 make ask Q="When should I choose Spanner over Cloud SQL?"                       # needs a key
@@ -67,7 +67,7 @@ flowchart LR
   |---|---|---|
   | Embeddings | fastembed `BAAI/bge-small-en-v1.5` | `EMBEDDING_PROVIDER=gemini` (`gemini-embedding-001`) |
   | Vector store | FAISS (exact inner product) | `VECTOR_STORE=vertex` (Vertex AI Vector Search) |
-  | LLM | Gemini Developer API (`GEMINI_API_KEY`) | Vertex AI (`GOOGLE_GENAI_USE_VERTEXAI=true`) |
+  | LLM | Gemini API free tier (`GEMINI_API_KEY`) | Vertex AI, kept in code but blocked by `FREE_TIER_ONLY` |
 
   The Vertex AI Vector Search backend is written against the documented
   `google-cloud-aiplatform` API (`pip install -e .[gcp]`). It is not exercised by the test
@@ -92,8 +92,11 @@ agents/ tools/ mcp_server/ api/ ui/ infra/ evals/   later phases
   approximate search would only add recall loss.
 - **Fixed-size chunking as the baseline.** It is deliberately structure-blind, so later evals can
   measure whether heading-aware chunking (`CHUNKING_STRATEGY=markdown`, already implemented) helps.
-- **Model IDs.** `gemini-3.8-flash` and `gemini-3.1-pro-preview` come from the Gemini models page
-  as of October 2026; the 2.5 family is deprecated. Both are configurable (`FLASH_MODEL`, `PRO_MODEL`).
+- **Free tier only.** The project runs only on the Gemini API free tier. `gemini-3.8-flash`
+  answers, and `gemini-3.6-flash` judges, so the judge is a different model. Pro has no free tier.
+  Requests are throttled per model, capped by a persisted daily budget (which resets at midnight
+  Pacific) and backed off on 429s. Runs resume after a quota stop. Verified models and limits
+  are in [EVALS.md](EVALS.md).
 - **Committed corpus snapshot.** Live docs change, and eval numbers should be traceable to
   the exact text that was retrieved.
 
@@ -102,7 +105,7 @@ agents/ tools/ mcp_server/ api/ ui/ infra/ evals/   later phases
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Scaffold, config, corpus ingestion, baseline hybrid RAG with citations | ✅ done |
-| 2 | Eval harness (50-scenario golden set, LLM-as-judge + deterministic metrics), baseline results | 🟡 harness + golden set done; baseline pending review and credentials |
+| 2 | Eval harness (50-scenario golden set, LLM-as-judge + deterministic metrics), baseline results | 🟡 harness, golden set and network-free deterministic baseline done; LLM baseline pending a free-tier key |
 | 3 | ADK multi-agent flow, cost tools + MCP server, architect output | ⏳ |
 | 4 | Guardrails, observability, model routing | ⏳ |
 | 5 | FastAPI + SSE, web chat UI | ⏳ |

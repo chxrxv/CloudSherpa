@@ -3,30 +3,55 @@
 ## Running
 
 ```bash
-python -m evals.run --tag baseline                # all 50 scenarios (Gemini API: costs credits)
-python -m evals.run --tag quick --subset 10       # stratified subset across all categories
-python -m evals.run --tag ci-smoke --smoke --mock # 5 scenarios, fake model + judge, free
+python -m evals.run --tag det --no-llm            # deterministic baseline: retrieval + gate, network blocked
+python -m evals.run --tag smoke5 --subset 5       # free-tier Gemini, stratified 5 scenarios
+python -m evals.run --tag baseline                # all 50 scenarios (free tier)
+python -m evals.run --tag baseline --resume       # continue after a quota stop
+python -m evals.run --tag ci-smoke --smoke --mock # 5 scenarios, fake model + judge (CI)
 python -m evals.report baseline                   # Markdown tables by category + worst 3
 python -m evals.report improved --compare baseline
 python -m evals.labels baseline                   # blind labeling sheet for judge validation
 ```
 
-`make eval`, `make eval-subset`, `make eval-smoke`, `make report` and `make labels` wrap these
-commands.
+`make eval`, `make eval-det`, `make eval-subset`, `make eval-resume`, `make eval-smoke`,
+`make report` and `make labels` wrap these commands.
+
+### Free tier: throttling, budgets, resume
+
+- **Guard.** `FREE_TIER_ONLY=true` allows only an AI Studio key and the verified free-tier
+  Flash models. Vertex and Pro are refused before any request is sent.
+- **Throttle.** Each model is limited to `LLM_RPM` requests per minute, spaced evenly.
+- **Daily budget.** `LLM_DAILY_REQUEST_BUDGET` caps requests per model per Pacific-time day.
+  Counts persist in `data/usage/`, so restarts can't overspend. When the budget runs out, the
+  run stops cleanly with exit code 3.
+- **429 handling.** Exponential backoff with jitter, honouring the server's `RetryInfo` delay.
+  A 429 whose `quotaId` is per-day stops immediately and marks the model exhausted for the rest
+  of the day.
+- **Judge cache.** Judge calls are cached in `evals/cache/judge/`, keyed by a hash of backend,
+  model, system prompt, prompt, schema and temperature. Only schema-valid verdicts are stored.
+- **Resume.** `--resume` reuses finished scenarios. A scenario whose answer exists but whose
+  judging was cut off is re-judged without regenerating the answer. Resume is refused if the
+  config, judge, golden set or scenario list changed.
+- **Local judge fallback.** Set `JUDGE_BACKEND=openai_compat` and `JUDGE_MODEL=<local model>`.
+  It is selected by config and never switched automatically mid-run, since mixing judges would
+  make the scores incomparable. Use a new `--tag` when you switch.
 
 Each run writes `evals/runs/<tag>/`:
 - `results.jsonl`: one record per scenario. It holds the answer, the retrieved chunks
-  (including their text, so judges can be re-run offline), citations, model, token counts,
-  latency, cost, deterministic metrics and judge verdicts.
-- `meta.json`: git commit and dirty flag, the full config snapshot, prompt version, judge
-  model, golden-set SHA-256, the price-table source, and whether the run was aborted.
+  (including their text, so judges can be re-run offline), citations, model, LLM request
+  count, token counts, latency, deterministic metrics and judge verdicts. It is written as
+  an append-only log and compacted at the end.
+- `meta.json`: mode (`live`/`no_llm`/`mock`), git commit and dirty flag, the full config
+  snapshot, prompt version, judge backend and model, golden-set SHA-256, rate-limit settings,
+  quota violations the server reported, requests used today, and whether the run was aborted.
 - `summary.json`: aggregates by category and overall, plus a per-scenario composite score.
 
 **Honesty guards.**
 - Without credentials, a non-mock run exits before writing anything.
-- After 3 consecutive API failures (for example rate limits) the run aborts and is marked
-  incomplete. The report says so, and failed scenarios count as errors rather than scores.
-- Mock runs are banner-labelled and not priced.
+- After 3 consecutive non-quota API failures the run aborts and is marked incomplete. The
+  report says so, and failed scenarios count as errors rather than scores.
+- Mock runs and retrieval-only runs are banner-labelled in reports.
+- Cost is reported as "$0 (free tier)" alongside request and token counts.
 - Judge metrics are labelled unvalidated until human labels exist.
 
 ## Golden set: `golden.jsonl`

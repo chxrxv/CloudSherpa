@@ -2,7 +2,7 @@
 PY ?= $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,python))
 export PYTHONUTF8 := 1
 
-.PHONY: help install ingest index ask test test-all lint fmt typecheck eval eval-subset eval-smoke report labels
+.PHONY: help install ingest index ask test test-all lint fmt typecheck eval eval-det eval-subset eval-resume eval-smoke report labels
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-12s %s\n",$$1,$$2}'
@@ -41,8 +41,14 @@ typecheck:  ## mypy
 TAG ?= baseline
 N ?= 10
 
-eval:  ## full golden-set eval (costs API credits): make eval TAG=baseline
+eval:  ## full golden-set eval on the free tier: make eval TAG=baseline
 	$(PY) -m evals.run --tag $(TAG)
+
+eval-det:  ## deterministic retrieval-only baseline, network blocked: make eval-det TAG=det
+	$(PY) -m evals.run --tag $(TAG) --no-llm
+
+eval-resume:  ## continue a run stopped by the free-tier quota: make eval-resume TAG=baseline
+	$(PY) -m evals.run --tag $(TAG) --resume
 
 eval-subset:  ## stratified subset: make eval-subset N=10 TAG=quick
 	$(PY) -m evals.run --tag $(TAG) --subset $(N)
