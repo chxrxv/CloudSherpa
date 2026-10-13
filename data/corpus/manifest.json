@@ -1,0 +1,395 @@
+{
+  "fetched_at": "2026-10-13T15:13:49+00:00",
+  "documents": [
+    {
+      "doc_id": "alloydb-overview",
+      "title": "AlloyDB overview",
+      "url": "https://docs.cloud.google.com/alloydb/docs/overview",
+      "category": "database"
+    },
+    {
+      "doc_id": "armor-overview",
+      "title": "Cloud Armor overview",
+      "url": "https://docs.cloud.google.com/armor/docs/cloud-armor-overview",
+      "category": "security"
+    },
+    {
+      "doc_id": "assured-workloads",
+      "title": "Overview of Assured Workloads",
+      "url": "https://docs.cloud.google.com/assured-workloads/docs/overview",
+      "category": "compliance"
+    },
+    {
+      "doc_id": "bigquery-cost-best-practices",
+      "title": "Estimate and control costs",
+      "url": "https://docs.cloud.google.com/bigquery/docs/best-practices-costs",
+      "category": "cost"
+    },
+    {
+      "doc_id": "bigquery-intro",
+      "title": "BigQuery overview",
+      "url": "https://docs.cloud.google.com/bigquery/docs/introduction",
+      "category": "analytics"
+    },
+    {
+      "doc_id": "bigquery-partitioned-tables",
+      "title": "Introduction to partitioned tables",
+      "url": "https://docs.cloud.google.com/bigquery/docs/partitioned-tables",
+      "category": "analytics"
+    },
+    {
+      "doc_id": "bigtable-overview",
+      "title": "Bigtable overview",
+      "url": "https://docs.cloud.google.com/bigtable/docs/overview",
+      "category": "database"
+    },
+    {
+      "doc_id": "billing-budgets",
+      "title": "Create, edit, or delete budgets and budget alerts",
+      "url": "https://docs.cloud.google.com/billing/docs/how-to/budgets",
+      "category": "cost"
+    },
+    {
+      "doc_id": "billing-export-bq",
+      "title": "Export Cloud Billing data to BigQuery",
+      "url": "https://docs.cloud.google.com/billing/docs/how-to/export-data-bigquery",
+      "category": "cost"
+    },
+    {
+      "doc_id": "billing-export-schema",
+      "title": "Structure of Standard data export",
+      "url": "https://docs.cloud.google.com/billing/docs/how-to/export-data-bigquery-tables/standard-usage",
+      "category": "cost"
+    },
+    {
+      "doc_id": "cdn-overview",
+      "title": "Cloud CDN overview",
+      "url": "https://docs.cloud.google.com/cdn/docs/overview",
+      "category": "networking"
+    },
+    {
+      "doc_id": "dataflow-overview",
+      "title": "Dataflow overview",
+      "url": "https://docs.cloud.google.com/dataflow/docs/overview",
+      "category": "analytics"
+    },
+    {
+      "doc_id": "dr-planning",
+      "title": "Disaster recovery planning guide",
+      "url": "https://docs.cloud.google.com/architecture/dr-scenarios-planning-guide",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "firestore-overview",
+      "title": "Firestore: Enterprise-grade document database with MongoDB compatibility",
+      "url": "https://cloud.google.com/products/firestore",
+      "category": "database"
+    },
+    {
+      "doc_id": "gce-autoscaler",
+      "title": "Autoscaling groups of instances",
+      "url": "https://docs.cloud.google.com/compute/docs/autoscaler",
+      "category": "compute"
+    },
+    {
+      "doc_id": "gce-cud",
+      "title": "Committed use discounts (CUDs) for Compute Engine",
+      "url": "https://docs.cloud.google.com/compute/docs/instances/committed-use-discounts-overview",
+      "category": "cost"
+    },
+    {
+      "doc_id": "gce-idle-vm",
+      "title": "View and apply idle VM recommendations",
+      "url": "https://docs.cloud.google.com/compute/docs/instances/viewing-and-applying-idle-vm-recommendations",
+      "category": "cost"
+    },
+    {
+      "doc_id": "gce-machine-resource",
+      "title": "Machine families resource and comparison guide",
+      "url": "https://docs.cloud.google.com/compute/docs/machine-resource",
+      "category": "compute"
+    },
+    {
+      "doc_id": "gce-rightsizing",
+      "title": "Apply machine type recommendations to VM instances",
+      "url": "https://docs.cloud.google.com/compute/docs/instances/apply-machine-type-recommendations-for-instances",
+      "category": "cost"
+    },
+    {
+      "doc_id": "gce-spot",
+      "title": "Spot VMs",
+      "url": "https://docs.cloud.google.com/compute/docs/instances/spot",
+      "category": "cost"
+    },
+    {
+      "doc_id": "gce-sud",
+      "title": "Sustained use discounts",
+      "url": "https://docs.cloud.google.com/compute/docs/sustained-use-discounts",
+      "category": "cost"
+    },
+    {
+      "doc_id": "gcs-lifecycle",
+      "title": "Object Lifecycle Management",
+      "url": "https://docs.cloud.google.com/storage/docs/lifecycle",
+      "category": "storage"
+    },
+    {
+      "doc_id": "gcs-locations",
+      "title": "Bucket locations",
+      "url": "https://docs.cloud.google.com/storage/docs/locations",
+      "category": "storage"
+    },
+    {
+      "doc_id": "gcs-pricing",
+      "title": "Storage pricing",
+      "url": "https://cloud.google.com/storage/pricing",
+      "category": "pricing"
+    },
+    {
+      "doc_id": "gcs-storage-classes",
+      "title": "Storage classes",
+      "url": "https://docs.cloud.google.com/storage/docs/storage-classes",
+      "category": "storage"
+    },
+    {
+      "doc_id": "geography-regions",
+      "title": "Geography and regions",
+      "url": "https://docs.cloud.google.com/docs/geography-and-regions",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "gke-autopilot",
+      "title": "GKE Autopilot overview",
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview",
+      "category": "compute"
+    },
+    {
+      "doc_id": "gke-overview",
+      "title": "GKE overview",
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview",
+      "category": "compute"
+    },
+    {
+      "doc_id": "iam-best-practices",
+      "title": "Use IAM securely",
+      "url": "https://docs.cloud.google.com/iam/docs/using-iam-securely",
+      "category": "security"
+    },
+    {
+      "doc_id": "kms-cmek",
+      "title": "Customer-managed encryption keys (CMEK)",
+      "url": "https://docs.cloud.google.com/kms/docs/cmek",
+      "category": "security"
+    },
+    {
+      "doc_id": "lb-overview",
+      "title": "Cloud Load Balancing overview",
+      "url": "https://docs.cloud.google.com/load-balancing/docs/load-balancing-overview",
+      "category": "networking"
+    },
+    {
+      "doc_id": "logging-overview",
+      "title": "Cloud Logging overview",
+      "url": "https://docs.cloud.google.com/logging/docs/overview",
+      "category": "operations"
+    },
+    {
+      "doc_id": "memorystore-redis",
+      "title": "Memorystore for Redis overview",
+      "url": "https://docs.cloud.google.com/memorystore/docs/redis/memorystore-for-redis-overview",
+      "category": "database"
+    },
+    {
+      "doc_id": "monitoring-overview",
+      "title": "Cloud Monitoring overview",
+      "url": "https://docs.cloud.google.com/monitoring/docs/monitoring-overview",
+      "category": "operations"
+    },
+    {
+      "doc_id": "nat-overview",
+      "title": "Cloud NAT overview",
+      "url": "https://docs.cloud.google.com/nat/docs/overview",
+      "category": "networking"
+    },
+    {
+      "doc_id": "pubsub-overview",
+      "title": "What is Pub/Sub?",
+      "url": "https://docs.cloud.google.com/pubsub/docs/overview",
+      "category": "analytics"
+    },
+    {
+      "doc_id": "recommender-overview",
+      "title": "What is Active Assist",
+      "url": "https://docs.cloud.google.com/recommender/docs/whatis-activeassist",
+      "category": "cost"
+    },
+    {
+      "doc_id": "run-concurrency",
+      "title": "Maximum concurrent requests for services",
+      "url": "https://docs.cloud.google.com/run/docs/about-concurrency",
+      "category": "compute"
+    },
+    {
+      "doc_id": "run-functions-overview",
+      "title": "Cloud Run functions overview",
+      "url": "https://docs.cloud.google.com/run/docs/functions/overview",
+      "category": "compute"
+    },
+    {
+      "doc_id": "run-min-instances",
+      "title": "Set minimum instances for services",
+      "url": "https://docs.cloud.google.com/run/docs/configuring/min-instances",
+      "category": "compute"
+    },
+    {
+      "doc_id": "run-overview",
+      "title": "What is Cloud Run",
+      "url": "https://docs.cloud.google.com/run/docs/overview/what-is-cloud-run",
+      "category": "compute"
+    },
+    {
+      "doc_id": "run-pricing",
+      "title": "Cloud Run pricing",
+      "url": "https://cloud.google.com/run/pricing",
+      "category": "pricing"
+    },
+    {
+      "doc_id": "run-service-identity",
+      "title": "Introduction to service identity",
+      "url": "https://docs.cloud.google.com/run/docs/securing/service-identity",
+      "category": "security"
+    },
+    {
+      "doc_id": "sdp-overview",
+      "title": "Sensitive Data Protection overview",
+      "url": "https://docs.cloud.google.com/sensitive-data-protection/docs/sensitive-data-protection-overview",
+      "category": "security"
+    },
+    {
+      "doc_id": "secret-manager",
+      "title": "Secret Manager overview",
+      "url": "https://docs.cloud.google.com/secret-manager/docs/overview",
+      "category": "security"
+    },
+    {
+      "doc_id": "spanner-overview",
+      "title": "Spanner: Always-on, virtually unlimited scale database",
+      "url": "https://cloud.google.com/spanner",
+      "category": "database"
+    },
+    {
+      "doc_id": "sql-ha",
+      "title": "About high availability",
+      "url": "https://docs.cloud.google.com/sql/docs/postgres/high-availability",
+      "category": "database"
+    },
+    {
+      "doc_id": "sql-idle-recommender",
+      "title": "Identify idle Cloud SQL instances",
+      "url": "https://docs.cloud.google.com/sql/docs/postgres/recommender-sql-idle",
+      "category": "cost"
+    },
+    {
+      "doc_id": "sql-intro",
+      "title": "Cloud SQL overview",
+      "url": "https://docs.cloud.google.com/sql/docs/introduction",
+      "category": "database"
+    },
+    {
+      "doc_id": "sql-overprovisioned-recommender",
+      "title": "Reduce overprovisioned Cloud SQL instances",
+      "url": "https://docs.cloud.google.com/sql/docs/postgres/recommender-sql-overprovisioned",
+      "category": "cost"
+    },
+    {
+      "doc_id": "sql-pricing",
+      "title": "Cloud SQL pricing",
+      "url": "https://cloud.google.com/sql/pricing",
+      "category": "pricing"
+    },
+    {
+      "doc_id": "sql-replication",
+      "title": "About replication in Cloud SQL",
+      "url": "https://docs.cloud.google.com/sql/docs/postgres/replication",
+      "category": "database"
+    },
+    {
+      "doc_id": "terraform-on-gcp",
+      "title": "Overview of Terraform on Google Cloud",
+      "url": "https://docs.cloud.google.com/docs/terraform/terraform-overview",
+      "category": "operations"
+    },
+    {
+      "doc_id": "vertex-ai-intro",
+      "title": "Introduction to machine learning on Gemini Enterprise Agent Platform",
+      "url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/machine-learning",
+      "category": "ai"
+    },
+    {
+      "doc_id": "vertex-rag-engine",
+      "title": "RAG Engine on Gemini Enterprise Agent Platform overview",
+      "url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/rag-engine/rag-overview",
+      "category": "ai"
+    },
+    {
+      "doc_id": "vertex-vector-search",
+      "title": "Vector Search",
+      "url": "https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/vector-search/overview",
+      "category": "ai"
+    },
+    {
+      "doc_id": "vpc-design-best-practices",
+      "title": "Best practices and reference architectures for VPC design",
+      "url": "https://docs.cloud.google.com/architecture/best-practices-vpc-design",
+      "category": "networking"
+    },
+    {
+      "doc_id": "vpc-overview",
+      "title": "VPC networks",
+      "url": "https://docs.cloud.google.com/vpc/docs/vpc",
+      "category": "networking"
+    },
+    {
+      "doc_id": "vpc-sc",
+      "title": "Overview of VPC Service Controls",
+      "url": "https://docs.cloud.google.com/vpc-service-controls/docs/overview",
+      "category": "security"
+    },
+    {
+      "doc_id": "waf-cost",
+      "title": "Well-Architected Framework: Cost optimization pillar",
+      "url": "https://docs.cloud.google.com/architecture/framework/cost-optimization",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "waf-operational-excellence",
+      "title": "Well-Architected Framework: Operational excellence pillar",
+      "url": "https://docs.cloud.google.com/architecture/framework/operational-excellence",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "waf-overview",
+      "title": "Google Cloud Well-Architected Framework",
+      "url": "https://docs.cloud.google.com/architecture/framework",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "waf-performance",
+      "title": "Well-Architected Framework: Performance optimization pillar",
+      "url": "https://docs.cloud.google.com/architecture/framework/performance-optimization",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "waf-reliability",
+      "title": "Well-Architected Framework: Reliability pillar",
+      "url": "https://docs.cloud.google.com/architecture/framework/reliability",
+      "category": "architecture"
+    },
+    {
+      "doc_id": "waf-security",
+      "title": "Well-Architected Framework: Security, privacy, and compliance pillar",
+      "url": "https://docs.cloud.google.com/architecture/framework/security",
+      "category": "architecture"
+    }
+  ]
+}
