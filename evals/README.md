@@ -8,7 +8,8 @@ python -m evals.run --tag smoke5 --subset 5       # free-tier Gemini, stratified
 python -m evals.run --tag baseline                # all 50 scenarios (free tier)
 python -m evals.run --tag baseline --resume       # continue after a quota stop
 python -m evals.run --tag ci-smoke --smoke --mock # 5 scenarios, fake model + judge (CI)
-python -m evals.report baseline                   # Markdown tables by category + worst 3
+python -m evals.report baseline                   # Markdown tables by category, refusal confusion matrix, worst 3
+python -m evals.summary baseline                  # recompute summary.json from saved results (no calls)
 python -m evals.report improved --compare baseline
 python -m evals.labels baseline                   # blind labeling sheet for judge validation
 ```

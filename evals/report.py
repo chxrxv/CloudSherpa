@@ -27,6 +27,17 @@ DET_COLS = [
     ("pii_leak_free", "PII leak-free"),
     ("asked_clarification", "Asked clarifying Q"),
 ]
+SMALL_N = 5  # cells with fewer applicable scenarios are flagged as anecdotal
+SMALL_N_MARK = "†"
+SMALL_N_NOTE = f"{SMALL_N_MARK} n < {SMALL_N}: too few scenarios to read as a rate."
+OUTCOME_LABELS = [
+    ("refused", "Refused"),
+    ("answered", "Answered"),
+    ("no_decision", "No decision*"),
+    ("error", "Error"),
+    ("not_run", "Not run"),
+]
+
 JUDGE_COLS = [
     ("judge_groundedness", "Groundedness"),
     ("judge_correctness", "Correctness"),
@@ -47,7 +58,8 @@ def load_run(tag: str) -> tuple[dict, dict, list[RunRecord]]:
 def _pct(m: dict | None) -> str:
     if not m or m.get("mean") is None:
         return "—"
-    return f"{100 * m['mean']:.0f}% ({m['n']})"
+    flag = SMALL_N_MARK if m["n"] < SMALL_N else ""
+    return f"{100 * m['mean']:.0f}% ({m['n']}){flag}"
 
 
 def _delta(new: dict | None, old: dict | None) -> str:
@@ -93,8 +105,9 @@ def metric_table(
 
 def perf_table(summary: dict, base: dict | None = None) -> str:
     lines = [
-        "| Category | p50 latency | p95 latency | LLM requests | Tokens in / out | Cost | Errors |",
-        "|---|---|---|---|---|---|---|",
+        "| Category | n | p50 latency | p95 latency | LLM requests | Tokens in / out | Cost "
+        "| Errors |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     base_rows = dict(_rows(base)) if base else {}
     for name, g in _rows(summary):
@@ -107,8 +120,51 @@ def perf_table(summary: dict, base: dict | None = None) -> str:
             reqs = f"{b.get('llm_requests', 0)} → {reqs}"
         tokens = f"{g.get('input_tokens', 0):,} / {g.get('output_tokens', 0):,}"
         lines.append(
-            f"| {name} | {p50} | {p95} | {reqs} | {tokens} | $0 (free tier) | {g['errors']} |"
+            f"| {name} | {g['n']} | {p50} | {p95} | {reqs} | {tokens} | $0 (free tier) "
+            f"| {g['errors']} |"
         )
+    return "\n".join(lines)
+
+
+def _bounded(r: dict) -> str:
+    n = r["n"]
+    if not n:
+        return "— (n=0)"
+    flag = SMALL_N_MARK if n < SMALL_N else ""
+    lo, hi = 100 * r["lower"], 100 * r["upper"]
+    rng = f"{lo:.0f}%" if r["undecided"] == 0 else f"{lo:.0f}–{hi:.0f}%"
+    extra = f"; {r['undecided']} undecided" if r["undecided"] else ""
+    return f"{rng} ({r['count']}/{n}{extra}){flag}"
+
+
+def confusion_section(summary: dict) -> str:
+    c = summary.get("refusal_confusion")
+    if not c:
+        return "_(not available for this run; re-summarize with `python -m evals.summary`)_"
+    head = "| Expected → outcome | n | " + " | ".join(lbl for _, lbl in OUTCOME_LABELS) + " |"
+    lines = [head, "|---|---|" + "---|" * len(OUTCOME_LABELS)]
+    for key, label in (
+        ("should_refuse", "should_refuse = true"),
+        ("should_answer", "should_refuse = false"),
+    ):
+        row = c["matrix"][key]
+        cells = " | ".join(str(row[k]) for k, _ in OUTCOME_LABELS)
+        lines.append(f"| {label} | {row['n']} | {cells} |")
+    lines += [
+        "",
+        r"\* No decision: the retrieval gate passed the question to the LLM, but this run made "
+        "no LLM call, so the final refuse/answer outcome is unknown. Rates below are shown "
+        "as a range: the low end counts unknown outcomes as not refused/answered, the high "
+        "end counts them as refused/answered.",
+        "",
+        "| Rate | Definition | Value |",
+        "|---|---|---|",
+        f"| Over-refusal | answerable scenarios refused | {_bounded(c['over_refusal'])} |",
+        f"| Under-refusal (out_of_scope) | out-of-scope scenarios answered | "
+        f"{_bounded(c['under_refusal_out_of_scope'])} |",
+        f"| Under-refusal (all should_refuse) | out-of-scope + injection scenarios answered | "
+        f"{_bounded(c['under_refusal_all'])} |",
+    ]
     return "\n".join(lines)
 
 
@@ -184,13 +240,18 @@ def render(tag: str, compare: str | None = None, k_worst: int = 3) -> str:
         "",
         "## Deterministic metrics",
         "",
-        "Cells: mean (n applicable). Metrics that don't apply to a scenario are excluded.",
+        "Cells: mean (n applicable). Metrics that don't apply to a scenario are excluded. "
+        + SMALL_N_NOTE,
         "",
         metric_table(summary, DET_COLS, base),
         "",
         f"## LLM-as-judge metrics — {judge_validation_status(tag)}",
         "",
         metric_table(summary, JUDGE_COLS, base),
+        "",
+        "## Refusal behaviour (all planned scenarios)",
+        "",
+        confusion_section(summary),
         "",
         "## Latency, requests and cost (system under test)",
         "",
