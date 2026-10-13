@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+# Built artifacts (rebuilt by `make index`); the ingested corpus itself IS committed.
+data/index/
+data/billing/*.duckdb
+evals/runs/*/raw/
+.terraform/
+*.tfstate*

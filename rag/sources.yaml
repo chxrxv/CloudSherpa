@@ -1,0 +1,85 @@
+# Curated GCP documentation corpus for the Knowledge agent.
+# Content: Google Cloud documentation, licensed CC BY 4.0 (code samples Apache 2.0).
+# `scripts/ingest_corpus.py` fetches each page, extracts the article body to Markdown and
+# writes it to data/corpus/docs/<id>.md with source metadata used for citations.
+sources:
+  # --- Compute & serverless ---
+  - {id: run-overview, category: compute, url: "https://cloud.google.com/run/docs/overview/what-is-cloud-run"}
+  - {id: run-concurrency, category: compute, url: "https://cloud.google.com/run/docs/about-concurrency"}
+  - {id: run-min-instances, category: compute, url: "https://cloud.google.com/run/docs/configuring/min-instances"}
+  - {id: run-service-identity, category: security, url: "https://cloud.google.com/run/docs/securing/service-identity"}
+  - {id: run-pricing, category: pricing, url: "https://cloud.google.com/run/pricing"}
+  - {id: run-functions-overview, category: compute, url: "https://cloud.google.com/run/docs/functions/overview"}
+  - {id: gke-overview, category: compute, url: "https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview"}
+  - {id: gke-autopilot, category: compute, url: "https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview"}
+  - {id: gce-machine-resource, category: compute, url: "https://cloud.google.com/compute/docs/machine-resource"}
+  - {id: gce-spot, category: cost, url: "https://cloud.google.com/compute/docs/instances/spot"}
+  - {id: gce-cud, category: cost, url: "https://cloud.google.com/compute/docs/instances/committed-use-discounts-overview"}
+  - {id: gce-sud, category: cost, url: "https://cloud.google.com/compute/docs/sustained-use-discounts"}
+  - {id: gce-idle-vm, category: cost, url: "https://cloud.google.com/compute/docs/instances/viewing-and-applying-idle-vm-recommendations"}
+  - {id: gce-rightsizing, category: cost, url: "https://cloud.google.com/compute/docs/instances/apply-machine-type-recommendations-for-instances"}
+  - {id: gce-autoscaler, category: compute, url: "https://cloud.google.com/compute/docs/autoscaler"}
+
+  # --- Databases ---
+  - {id: sql-intro, category: database, url: "https://cloud.google.com/sql/docs/introduction"}
+  - {id: sql-ha, category: database, url: "https://cloud.google.com/sql/docs/postgres/high-availability"}
+  - {id: sql-replication, category: database, url: "https://cloud.google.com/sql/docs/postgres/replication"}
+  - {id: sql-idle-recommender, category: cost, url: "https://cloud.google.com/sql/docs/postgres/recommender-sql-idle"}
+  - {id: sql-overprovisioned-recommender, category: cost, url: "https://cloud.google.com/sql/docs/postgres/recommender-sql-overprovisioned"}
+  - {id: sql-pricing, category: pricing, url: "https://cloud.google.com/sql/pricing"}
+  - {id: alloydb-overview, category: database, url: "https://cloud.google.com/alloydb/docs/overview"}
+  - {id: spanner-overview, category: database, url: "https://cloud.google.com/spanner/docs/overview"}
+  - {id: firestore-overview, category: database, url: "https://cloud.google.com/firestore/docs/overview"}
+  - {id: bigtable-overview, category: database, url: "https://cloud.google.com/bigtable/docs/overview"}
+  - {id: memorystore-redis, category: database, url: "https://cloud.google.com/memorystore/docs/redis/memorystore-for-redis-overview"}
+
+  # --- Data & analytics ---
+  - {id: bigquery-intro, category: analytics, url: "https://cloud.google.com/bigquery/docs/introduction"}
+  - {id: bigquery-cost-best-practices, category: cost, url: "https://cloud.google.com/bigquery/docs/best-practices-costs"}
+  - {id: bigquery-partitioned-tables, category: analytics, url: "https://cloud.google.com/bigquery/docs/partitioned-tables"}
+  - {id: pubsub-overview, category: analytics, url: "https://cloud.google.com/pubsub/docs/overview"}
+  - {id: dataflow-overview, category: analytics, url: "https://cloud.google.com/dataflow/docs/overview"}
+  - {id: billing-export-bq, category: cost, url: "https://cloud.google.com/billing/docs/how-to/export-data-bigquery"}
+  - {id: billing-export-schema, category: cost, url: "https://cloud.google.com/billing/docs/how-to/export-data-bigquery-tables/standard-usage"}
+  - {id: billing-budgets, category: cost, url: "https://cloud.google.com/billing/docs/how-to/budgets"}
+
+  # --- Storage ---
+  - {id: gcs-storage-classes, category: storage, url: "https://cloud.google.com/storage/docs/storage-classes"}
+  - {id: gcs-lifecycle, category: storage, url: "https://cloud.google.com/storage/docs/lifecycle"}
+  - {id: gcs-locations, category: storage, url: "https://cloud.google.com/storage/docs/locations"}
+  - {id: gcs-pricing, category: pricing, url: "https://cloud.google.com/storage/pricing"}
+
+  # --- Networking ---
+  - {id: lb-overview, category: networking, url: "https://cloud.google.com/load-balancing/docs/load-balancing-overview"}
+  - {id: cdn-overview, category: networking, url: "https://cloud.google.com/cdn/docs/overview"}
+  - {id: armor-overview, category: security, url: "https://cloud.google.com/armor/docs/cloud-armor-overview"}
+  - {id: vpc-overview, category: networking, url: "https://cloud.google.com/vpc/docs/vpc"}
+  - {id: nat-overview, category: networking, url: "https://cloud.google.com/nat/docs/overview"}
+  - {id: vpc-design-best-practices, category: networking, url: "https://cloud.google.com/architecture/best-practices-vpc-design"}
+
+  # --- Security & compliance ---
+  - {id: iam-best-practices, category: security, url: "https://cloud.google.com/iam/docs/using-iam-securely"}
+  - {id: secret-manager, category: security, url: "https://cloud.google.com/secret-manager/docs/overview"}
+  - {id: vpc-sc, category: security, url: "https://cloud.google.com/vpc-service-controls/docs/overview"}
+  - {id: sdp-overview, category: security, url: "https://cloud.google.com/sensitive-data-protection/docs/sensitive-data-protection-overview"}
+  - {id: kms-cmek, category: security, url: "https://cloud.google.com/kms/docs/cmek"}
+  - {id: assured-workloads, category: compliance, url: "https://cloud.google.com/assured-workloads/docs/overview"}
+
+  # --- Architecture Framework & reference guidance ---
+  - {id: waf-overview, category: architecture, url: "https://cloud.google.com/architecture/framework"}
+  - {id: waf-cost, category: architecture, url: "https://cloud.google.com/architecture/framework/cost-optimization"}
+  - {id: waf-reliability, category: architecture, url: "https://cloud.google.com/architecture/framework/reliability"}
+  - {id: waf-security, category: architecture, url: "https://cloud.google.com/architecture/framework/security"}
+  - {id: waf-performance, category: architecture, url: "https://cloud.google.com/architecture/framework/performance-optimization"}
+  - {id: waf-operational-excellence, category: architecture, url: "https://cloud.google.com/architecture/framework/operational-excellence"}
+  - {id: dr-planning, category: architecture, url: "https://cloud.google.com/architecture/dr-scenarios-planning-guide"}
+  - {id: geography-regions, category: architecture, url: "https://cloud.google.com/docs/geography-and-regions"}
+
+  # --- AI & operations ---
+  - {id: vertex-ai-intro, category: ai, url: "https://cloud.google.com/vertex-ai/docs/start/introduction-unified-platform"}
+  - {id: vertex-rag-engine, category: ai, url: "https://cloud.google.com/vertex-ai/generative-ai/docs/rag-engine/rag-overview"}
+  - {id: vertex-vector-search, category: ai, url: "https://cloud.google.com/vertex-ai/docs/vector-search/overview"}
+  - {id: monitoring-overview, category: operations, url: "https://cloud.google.com/monitoring/docs/monitoring-overview"}
+  - {id: logging-overview, category: operations, url: "https://cloud.google.com/logging/docs/overview"}
+  - {id: recommender-overview, category: cost, url: "https://cloud.google.com/recommender/docs/overview"}
+  - {id: terraform-on-gcp, category: operations, url: "https://cloud.google.com/docs/terraform/terraform-overview"}
